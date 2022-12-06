@@ -6171,6 +6171,12 @@ impossible to detect at compile time with the preprocessor.
   }];
 }
 
+def UnsafeBufferDocs : DocumentationCategory<"Unsafe Buffer Usage Attributes"> {
+  let Content = [{
+Unsafe Buffer usage attributes TODO: add documentation.
+  }];
+}
+
 def HandleDocs : DocumentationCategory<"Handle Attributes"> {
   let Content = [{
 Handles are a way to identify resources like files, sockets, and processes.
@@ -6233,6 +6239,21 @@ attribute requires a string literal argument to identify the handle being releas
 .. code-block:: c++
 
   zx_status_t zx_handle_close(zx_handle_t handle [[clang::release_handle("tag")]]);
+  }];
+}
+
+def UnsafeBufferUsageDocs : Documentation {
+  let Category = UnsafeBufferDocs;
+  let Content = [{
+If a function parameter is accessed in an unsafe manner,
+the corresponding function declaration is annotated with ``unsafe_buffer_usage``.
+
+.. code-block:: c++
+
+  [[clang::unsafe_buffer_usage]]
+  void foo(int* buf, int size) {
+      buf++;
+  }
   }];
 }
 
