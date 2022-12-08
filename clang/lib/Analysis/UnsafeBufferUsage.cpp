@@ -9,6 +9,7 @@
 #include "clang/Analysis/Analyses/UnsafeBufferUsage.h"
 #include "clang/AST/RecursiveASTVisitor.h"
 #include "llvm/ADT/SmallVector.h"
+#include <iostream>
 
 using namespace llvm;
 using namespace clang;
@@ -359,6 +360,53 @@ public:
     return {};
   }
 };
+
+/// A pointer arithmetic expression of one of the forms:
+///  \code
+///  ptr + n | n + ptr | ptr - n | ptr += n | ptr -= n
+///  \endcode
+class PointerArithmeticGadget : public UnsafeGadget {
+  const BinaryOperator *PA; // pointer arithmetic expression
+  const Expr * Ptr;         // the pointer expression in `PA`
+
+public:
+    PointerArithmeticGadget(const MatchFinder::MatchResult &Result)
+      : UnsafeGadget(Kind::PointerArithmetic),
+        PA(Result.Nodes.getNodeAs<BinaryOperator>("ptrAdd")),
+        Ptr(Result.Nodes.getNodeAs<Expr>("ptrAddPtr")) {}
+
+  static bool classof(const Gadget *G) {
+    return G->getKind() == Kind::PointerArithmetic;
+  }
+
+  static Matcher matcher() {
+    auto HasIntegerType = anyOf(
+          hasType(isInteger()), hasType(enumType()));
+    auto PtrAtRight = allOf(hasOperatorName("+"),
+                            hasRHS(expr(hasPointerType()).bind("ptrAddPtr")),
+                            hasLHS(HasIntegerType));
+    auto PtrAtLeft = allOf(
+           anyOf(hasOperatorName("+"), hasOperatorName("-"),
+                 hasOperatorName("+="), hasOperatorName("-=")),
+           hasLHS(expr(hasPointerType()).bind("ptrAddPtr")),
+           hasRHS(HasIntegerType));
+
+    return stmt(binaryOperator(anyOf(PtrAtLeft, PtrAtRight)).bind("ptrAdd"));
+  }
+
+  const Stmt *getBaseStmt() const override { return PA; }
+
+  DeclUseList getClaimedVarUseSites() const override {
+    if (const auto *DRE =
+            dyn_cast<DeclRefExpr>(Ptr->IgnoreParenImpCasts())) {
+      return {DRE};
+    }
+
+    return {};
+  }
+  // FIXME: pointer adding zero should be fine
+  //FIXME: this gadge will need a fix-it
+};
 } // namespace
 
 namespace {
@@ -528,6 +576,7 @@ static std::pair<GadgetList, DeclUseTracker> findGadgets(const Decl *D) {
 
 void clang::checkUnsafeBufferUsage(const Decl *D,
                                    UnsafeBufferUsageHandler &Handler) {
+  std::cout << "REACHED HERE \n";
   assert(D && D->getBody());
 
   SmallSet<const VarDecl *, 8> WarnedDecls;
@@ -535,6 +584,7 @@ void clang::checkUnsafeBufferUsage(const Decl *D,
   auto [Gadgets, Tracker] = findGadgets(D);
 
   DenseMap<const VarDecl *, std::vector<const Gadget *>> Map;
+  int count = 0;
 
   // First, let's sort gadgets by variables. If some gadgets cover more than one
   // variable, they'll appear more than once in the map.
@@ -550,6 +600,9 @@ void clang::checkUnsafeBufferUsage(const Decl *D,
       }
     }
 
+    bool b = !Pushed && !G->isSafe();
+    std::cout << "count" << count << " " << b <<"\n";
+    count++;
     if (!Pushed && !G->isSafe()) {
       // We won't return to this gadget later. Emit the warning right away.
       Handler.handleUnsafeOperation(G->getBaseStmt());

@@ -4,7 +4,7 @@
 #pragma clang system_header
 
 // no spanification warnings for system headers
-void foo(...);
+void foo(...);  // let arguments of `foo` to hold testing expressions
 void testAsSystemHeader(char *p) {
   ++p;
 
@@ -57,10 +57,10 @@ void testArraySubscripts(int *p, int **pp) {
 
   // Not to warn when index is zero
   foo(p[0], pp[0][0], 0[0[pp]], 0[pp][0],
-      ((int*)bar())[0],
-      0[(int*)bar()],
-      baz()[0],
-      0[baz()]
+      ((int*)voidPtrCall())[0],
+      0[(int*)voidPtrCall()],
+      charPtrCall()[0],
+      0[charPtrCall()]
       );
 }
 
@@ -73,7 +73,7 @@ void testArraySubscriptsWithAuto(int *p, int **pp) {
 
   auto ap2 = p;
 
-  foo(ap2[1]);   // expected-warning{{unchecked operation on raw buffer in expression}}
+  foo(ap2[1]);  // expected-warning{{unchecked operation on raw buffer in expression}}
 
   auto ap3 = pp;
 
@@ -81,7 +81,7 @@ void testArraySubscriptsWithAuto(int *p, int **pp) {
 
   auto ap4 = *pp;
 
-  foo(ap4[1]);   // expected-warning{{unchecked operation on raw buffer in expression}}
+  foo(ap4[1]);  // expected-warning{{unchecked operation on raw buffer in expression}}
 }
 
 void testQualifiedParameters(const int * p, const int * const q,
@@ -163,10 +163,37 @@ template<typename T, int N> T f(T t, T * pt, T a[N], T (&b)[N]) {
   return &t[1]; // expected-warning{{unchecked operation on raw buffer in expression}}
 }
 
+// Testing pointer arithmetic for pointer-to-int, qualified multi-level
+// pointer, pointer to a template type, and auto type
+
+T_ptr_t getPtr();
+
+template<typename T>
+void testPointerArithmetic(int * p, const int **q, T * x) {
+  int a[10];
+  auto y = &a[0];
+
+  foo(p + 1, 1 + p, p - 1,      // expected-warning3{{unchecked operation on raw buffer in expression}}
+      *q + 1, 1 + *q, *q - 1,   // expected-warning3{{unchecked operation on raw buffer in expression}}
+      x + 1, 1 + x, x - 1,      // expected-warning3{{unchecked operation on raw buffer in expression}}
+      y + 1, 1 + y, y - 1,      // expected-warning3{{unchecked operation on raw buffer in expression}}
+      getPtr() + 1, 1 + getPtr(), getPtr() - 1 // expected-warning3{{unchecked operation on raw buffer in expression}}
+      );
+
+  p += 1;  p -= 1;  // expected-warning2{{unchecked operation on raw buffer in expression}}
+  *q += 1; *q -= 1; // expected-warning2{{unchecked operation on raw buffer in expression}}
+  y += 1; y -= 1;   // expected-warning2{{unchecked operation on raw buffer in expression}}
+  x += 1; x -= 1;   // expected-warning2{{unchecked operation on raw buffer in expression}}
+}
+
 void testTemplate(int * p) {
   int *a[10];
   foo(f(p, &p, a, a)[1]); // expected-warning{{unchecked operation on raw buffer in expression}}, \
                              expected-note{{in instantiation of function template specialization 'f<int *, 10>' requested here}}
+
+  const int **q = const_cast<const int **>(&p);
+
+  testPointerArithmetic(p, q, p); //expected-note{{in instantiation of function template specialization 'testPointerArithmetic<int>' requested here}}
 }
 
 // test that nested callable definitions are scanned only once

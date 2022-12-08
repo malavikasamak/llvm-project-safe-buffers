@@ -22,6 +22,7 @@ UNSAFE_GADGET(Increment)
 UNSAFE_GADGET(Decrement)
 UNSAFE_GADGET(ArraySubscript)
 UNSAFE_GADGET(UnsafeBufferUsageAttr)
+UNSAFE_GADGET(PointerArithmetic)
 
 #undef SAFE_GADGET
 #undef UNSAFE_GADGET
