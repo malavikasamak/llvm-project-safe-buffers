@@ -584,6 +584,7 @@ void clang::checkUnsafeBufferUsage(const Decl *D,
   auto [Gadgets, Tracker] = findGadgets(D);
 
   DenseMap<const VarDecl *, std::vector<const Gadget *>> Map;
+  int count = 0;
 
   // First, let's sort gadgets by variables. If some gadgets cover more than one
   // variable, they'll appear more than once in the map.

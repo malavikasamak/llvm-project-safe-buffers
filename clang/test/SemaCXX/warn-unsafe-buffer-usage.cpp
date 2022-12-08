@@ -4,7 +4,7 @@
 #pragma clang system_header
 
 // no spanification warnings for system headers
-void foo(...);
+void foo(...);  // let arguments of `foo` to hold testing expressions
 void testAsSystemHeader(char *p) {
   ++p;
 
@@ -57,10 +57,10 @@ void testArraySubscripts(int *p, int **pp) {
 
   // Not to warn when index is zero
   foo(p[0], pp[0][0], 0[0[pp]], 0[pp][0],
-      ((int*)bar())[0],
-      0[(int*)bar()],
-      baz()[0],
-      0[baz()]
+      ((int*)voidPtrCall())[0],
+      0[(int*)voidPtrCall()],
+      charPtrCall()[0],
+      0[charPtrCall()]
       );
 }
 
@@ -73,7 +73,7 @@ void testArraySubscriptsWithAuto(int *p, int **pp) {
 
   auto ap2 = p;
 
-  foo(ap2[1]);   // expected-warning{{unchecked operation on raw buffer in expression}}
+  foo(ap2[1]);  // expected-warning{{unchecked operation on raw buffer in expression}}
 
   auto ap3 = pp;
 
@@ -81,7 +81,7 @@ void testArraySubscriptsWithAuto(int *p, int **pp) {
 
   auto ap4 = *pp;
 
-  foo(ap4[1]);   // expected-warning{{unchecked operation on raw buffer in expression}}
+  foo(ap4[1]);  // expected-warning{{unchecked operation on raw buffer in expression}}
 }
 
 void testQualifiedParameters(const int * p, const int * const q,
